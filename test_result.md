@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Plane-1513 game functionality: 1. Verify the game loads with Level 1 and a 5x4 grid. 2. Check if the Target Schematics (Plane Preview) is visible. 3. Click a few cells on the grid. Verify that clicked cells change color (Green for Miss, Yellow for Hurt, Red for Head). 4. Verify that the Clicks counter increments. 5. Verify that hitting the Head (Red) shows the SECTOR CLEARED or MISSION FAILED dialog. 6. Verify layout responsiveness."
+user_problem_statement: "Test the updated Plane-1513 game: 1. Verify Level 1 is 5x4. 2. Verify Sound Manager doesn't crash (mock AudioContext if needed). 3. Verify clicking cells produces sound and color changes. 4. Verify hitting HEAD shows the Bottom Sheet result (not a centered modal). 5. Verify the 'Reveal' logic: Unclicked cells should turn Green/Yellow/Red appropriately without text. 6. Check if Language detection defaults to English (or mocked language). 7. Verify Level 3 configuration exists."
 
 frontend:
   - task: "Game initialization and grid display"
