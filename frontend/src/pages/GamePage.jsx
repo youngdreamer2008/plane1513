@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { generatePlanePosition, calculateScore, LEVELS, PLANE_PARTS } from '@/lib/gameLogic';
-import PlanePreview from './PlanePreview';
+import PlanePreview from '@/components/game/PlanePreview';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
