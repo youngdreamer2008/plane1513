@@ -144,21 +144,22 @@ const GamePage = () => {
         const state = gridState[key] || CELL_STATES.UNKNOWN;
         
         // Visual Logic
-        let bgClass = "bg-secondary";
+        // DEFAULT STATE: Tactical Grid Look
+        let bgClass = "bg-secondary border border-primary/20 hover:border-primary/50"; 
         let textClass = "text-secondary-foreground";
         let content = null;
         let borderClass = "";
 
         if (state === CELL_STATES.MISS) {
-            bgClass = "bg-success";
+            bgClass = "bg-success border-success";
             textClass = "text-success-foreground";
             content = t.miss;
         } else if (state === CELL_STATES.HURT) {
-            bgClass = "bg-warning";
+            bgClass = "bg-warning border-warning";
             textClass = "text-warning-foreground";
             content = t.hurt;
         } else if (state === CELL_STATES.HEAD) {
-            bgClass = "bg-destructive";
+            bgClass = "bg-destructive border-destructive";
             textClass = "text-destructive-foreground animate-pulse";
             content = t.boom;
         }
@@ -169,10 +170,10 @@ const GamePage = () => {
             if (state === CELL_STATES.UNKNOWN) {
                 if (part) {
                     // Unclicked Body
-                    bgClass = part.type === PLANE_PARTS.HEAD ? "bg-destructive/80" : "bg-warning/80";
+                    bgClass = part.type === PLANE_PARTS.HEAD ? "bg-destructive/80 border-destructive" : "bg-warning/80 border-warning";
                 } else {
                     // Unclicked Empty -> Greenish background, NO text
-                    bgClass = "bg-success/30";
+                    bgClass = "bg-success/20 border-success/30";
                 }
             }
             // Add Outline
@@ -192,7 +193,7 @@ const GamePage = () => {
             )}
           >
             {/* Hover Crosshair Effect (Only when playing) */}
-            {gameState === 'PLAYING' && (
+            {gameState === 'PLAYING' && state === CELL_STATES.UNKNOWN && (
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none flex items-center justify-center z-20">
                     <div className="w-full h-[1px] bg-primary/50 absolute"></div>
                     <div className="h-full w-[1px] bg-primary/50 absolute"></div>
@@ -276,7 +277,8 @@ const GamePage = () => {
 
          {/* Sidebar: Radar & Log */}
          <div className="lg:col-span-5 space-y-4">
-            <Card className="p-4 bg-card/80 backdrop-blur border-border shadow-lg">
+            <Card className="p-0 bg-transparent border-none shadow-none">
+                 {/* Preview Grid Component with updated styling */}
                 <PlanePreview translations={t} />
             </Card>
 
