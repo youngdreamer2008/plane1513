@@ -1,48 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generatePlanePosition, calculateScore, LEVELS, PLANE_PARTS } from '@/lib/gameLogic';
 import PlanePreview from '@/components/game/PlanePreview';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Target, Crosshair, RefreshCcw, Trophy, AlertTriangle } from 'lucide-react';
+import { Target, Crosshair, RefreshCcw, Trophy, AlertTriangle, Settings, Volume2, VolumeX, Globe } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { getTranslation } from '@/lib/i18n';
+import { soundManager } from '@/lib/sound';
 
 const CELL_STATES = {
   UNKNOWN: 'UNKNOWN',
-  MISS: 'MISS',     // Green
-  HURT: 'HURT',     // Yellow
-  HEAD: 'HEAD',     // Red (Win)
+  MISS: 'MISS',     
+  HURT: 'HURT',     
+  HEAD: 'HEAD',     
 };
 
 const GamePage = () => {
+  const [lang, setLang] = useState('en');
+  const t = getTranslation(lang);
+  
   const [currentLevel, setCurrentLevel] = useState(1);
-  const [gameState, setGameState] = useState('PLAYING'); // PLAYING, WON, LOST, FINISHED_ALL
+  const [gameState, setGameState] = useState('PLAYING'); 
   const [planeCells, setPlaneCells] = useState([]);
-  const [gridState, setGridState] = useState({}); // { "r-c": CELL_STATES.X }
+  const [gridState, setGridState] = useState({});
   const [clicks, setClicks] = useState(0);
   const [score, setScore] = useState(0);
-  const [history, setHistory] = useState([]); // Array of click coords for replay/undo if needed? No, just visual.
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Initialize Level
+  // Initial Language Detect
+  useEffect(() => {
+    const browserLang = navigator.language || 'en';
+    setLang(browserLang);
+  }, []);
+
+  // Update Sound Manager
+  useEffect(() => {
+    soundManager.enabled = soundEnabled;
+  }, [soundEnabled]);
+
   const initLevel = (levelId) => {
     const config = LEVELS[levelId];
     if (!config) {
         setGameState('FINISHED_ALL');
         return;
     }
-    
     const plane = generatePlanePosition(config.rows, config.cols);
     if (!plane) {
         console.error("Failed to generate plane");
         return;
     }
-
     setPlaneCells(plane);
     setGridState({});
     setClicks(0);
     setScore(0);
     setGameState('PLAYING');
-    setHistory([]);
   };
 
   useEffect(() => {
@@ -52,31 +63,38 @@ const GamePage = () => {
   const handleCellClick = (r, c) => {
     if (gameState !== 'PLAYING') return;
     const key = `${r}-${c}`;
-    if (gridState[key]) return; // Already clicked
+    if (gridState[key]) return; 
+
+    soundManager.playClick();
 
     const newClicks = clicks + 1;
     setClicks(newClicks);
 
-    // Check hit
     const hitPart = planeCells.find(p => p.r === r && p.c === c);
     
     let newState = CELL_STATES.MISS;
     if (hitPart) {
       if (hitPart.type === PLANE_PARTS.HEAD) {
         newState = CELL_STATES.HEAD;
-        // WIN CONDITION
+        soundManager.playBoom();
+        
         const lvlConfig = LEVELS[currentLevel];
         const finalScore = calculateScore(newClicks, lvlConfig.idealClicks);
         setScore(finalScore);
         
         if (finalScore >= 60) {
             setGameState('WON');
+            soundManager.playWin();
         } else {
             setGameState('LOST');
+            soundManager.playLose();
         }
       } else {
         newState = CELL_STATES.HURT;
+        soundManager.playHurt();
       }
+    } else {
+        soundManager.playMiss();
     }
 
     setGridState(prev => ({
@@ -85,16 +103,28 @@ const GamePage = () => {
     }));
   };
 
-  const handleNextLevel = () => {
-    if (LEVELS[currentLevel + 1]) {
-        setCurrentLevel(curr => curr + 1);
-    } else {
-        setGameState('FINISHED_ALL');
-    }
+  const isPlaneCell = (r, c) => {
+      return planeCells.some(p => p.r === r && p.c === c);
   };
+  
+  const getBorderClasses = (r, c) => {
+      if (gameState === 'PLAYING') return "";
+      
+      // Check if this cell is part of the plane
+      if (!isPlaneCell(r,c)) return "";
 
-  const handleRetry = () => {
-    initLevel(currentLevel);
+      // Check neighbors
+      const isTop = !isPlaneCell(r-1, c);
+      const isBottom = !isPlaneCell(r+1, c);
+      const isLeft = !isPlaneCell(r, c-1);
+      const isRight = !isPlaneCell(r, c+1);
+
+      return cn(
+          isTop && "border-t-4 border-t-foreground",
+          isBottom && "border-b-4 border-b-foreground",
+          isLeft && "border-l-4 border-l-foreground",
+          isRight && "border-r-4 border-r-foreground"
+      );
   };
 
   const renderGrid = () => {
@@ -102,213 +132,230 @@ const GamePage = () => {
     const config = LEVELS[currentLevel];
     const grid = [];
 
+    // Grid Container Style to match rows/cols
+    const gridStyle = {
+        gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
+    };
+
     for (let r = 0; r < config.rows; r++) {
       const rowCells = [];
       for (let c = 0; c < config.cols; c++) {
         const key = `${r}-${c}`;
         const state = gridState[key] || CELL_STATES.UNKNOWN;
         
-        let cellClass = "bg-secondary hover:bg-secondary/80 border-border";
+        // Visual Logic
+        let bgClass = "bg-secondary";
+        let textClass = "text-secondary-foreground";
         let content = null;
+        let borderClass = "";
 
         if (state === CELL_STATES.MISS) {
-            cellClass = "bg-success text-success-foreground border-success ring-2 ring-inset ring-success/20";
-            content = "MISS";
+            bgClass = "bg-success";
+            textClass = "text-success-foreground";
+            content = t.miss;
         } else if (state === CELL_STATES.HURT) {
-            cellClass = "bg-warning text-warning-foreground border-warning ring-2 ring-inset ring-warning/20";
-            content = "HURT";
+            bgClass = "bg-warning";
+            textClass = "text-warning-foreground";
+            content = t.hurt;
         } else if (state === CELL_STATES.HEAD) {
-            cellClass = "bg-destructive text-destructive-foreground border-destructive ring-4 ring-inset ring-destructive/30";
-            content = "BOOM";
+            bgClass = "bg-destructive";
+            textClass = "text-destructive-foreground animate-pulse";
+            content = t.boom;
         }
 
-        // Show plane if game over (reveal)
-        if ((gameState === 'WON' || gameState === 'LOST') && state === CELL_STATES.UNKNOWN) {
+        // Reveal Logic
+        if ((gameState === 'WON' || gameState === 'LOST')) {
             const part = planeCells.find(p => p.r === r && p.c === c);
-            if (part) {
-                cellClass = "opacity-50 " + (part.type === PLANE_PARTS.HEAD ? "bg-destructive/50" : "bg-warning/20");
+            if (state === CELL_STATES.UNKNOWN) {
+                if (part) {
+                    // Unclicked Body
+                    bgClass = part.type === PLANE_PARTS.HEAD ? "bg-destructive/80" : "bg-warning/80";
+                } else {
+                    // Unclicked Empty -> Greenish background, NO text
+                    bgClass = "bg-success/30";
+                }
             }
+            // Add Outline
+            borderClass = getBorderClasses(r, c);
         }
 
         rowCells.push(
           <button
             key={key}
             onClick={() => handleCellClick(r, c)}
-            disabled={gameState !== 'PLAYING' || state !== CELL_STATES.UNKNOWN}
+            disabled={gameState !== 'PLAYING'}
             className={cn(
-              "relative aspect-square w-full rounded-md border transition-all duration-300 flex items-center justify-center text-xs sm:text-sm font-bold shadow-sm overflow-hidden group",
-              cellClass
+              "relative aspect-square w-full rounded-sm transition-all duration-200 flex items-center justify-center text-[10px] sm:text-xs font-bold overflow-hidden group cursor-none select-none",
+              bgClass,
+              textClass,
+              borderClass
             )}
           >
-            {state === CELL_STATES.UNKNOWN && gameState === 'PLAYING' && (
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors flex items-center justify-center">
-                    <Crosshair className="w-4 h-4 opacity-0 group-hover:opacity-50 text-primary transition-opacity" />
+            {/* Hover Crosshair Effect (Only when playing) */}
+            {gameState === 'PLAYING' && (
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none flex items-center justify-center z-20">
+                    <div className="w-full h-[1px] bg-primary/50 absolute"></div>
+                    <div className="h-full w-[1px] bg-primary/50 absolute"></div>
+                    <div className="w-8 h-8 rounded-full border border-primary/80 absolute animate-ping"></div>
+                    <div className="w-1 h-1 bg-primary rounded-full absolute"></div>
                 </div>
             )}
-            <span className={cn("z-10 animate-in zoom-in duration-300", state === CELL_STATES.UNKNOWN ? "opacity-0" : "opacity-100")}>
-                {content}
-            </span>
+            
+            <span className="z-10 relative">{content}</span>
           </button>
         );
       }
-      grid.push(<div key={r} className="grid grid-cols-5 gap-2 sm:gap-3">{rowCells}</div>);
+      grid.push(...rowCells);
     }
-    return <div className="flex flex-col gap-2 sm:gap-3 w-full max-w-[400px] mx-auto">{grid}</div>;
+    return (
+        <div className="grid gap-1 w-full max-w-[400px] mx-auto p-1 bg-card border border-border rounded-lg shadow-xl" style={gridStyle}>
+            {grid}
+        </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8 flex flex-col relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-scan"></div>
-         <div className="absolute top-20 right-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
-         <div className="absolute bottom-20 left-20 w-96 h-96 bg-secondary/10 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen bg-background p-4 flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
+      
+      {/* Dynamic Radar Cursor (Global) */}
+      <style>{`
+          .cursor-radar {
+            cursor: crosshair;
+          }
+      `}</style>
 
-      <header className="relative z-10 flex justify-between items-center mb-8 max-w-5xl mx-auto w-full">
+      {/* Header */}
+      <header className="relative z-10 flex justify-between items-center mb-6 max-w-5xl mx-auto w-full">
          <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-                <Target className="w-6 h-6 text-primary" />
+                <Target className="w-6 h-6 text-primary animate-[spin_10s_linear_infinite]" />
             </div>
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">PLANE-1513</h1>
-                <p className="text-xs text-muted-foreground tracking-widest uppercase">Tactical Strike System</p>
+                <h1 className="text-2xl font-black tracking-tighter text-foreground">{t.title}</h1>
+                <p className="text-xs text-muted-foreground tracking-widest uppercase">{t.subtitle}</p>
             </div>
          </div>
-         <div className="hidden sm:flex items-center gap-6">
-             <div className="text-right">
-                 <div className="text-xs text-muted-foreground uppercase">Current Level</div>
-                 <div className="text-xl font-mono font-bold text-primary">{currentLevel} / {Object.keys(LEVELS).length}</div>
-             </div>
-             <div className="text-right">
-                 <div className="text-xs text-muted-foreground uppercase">Clicks</div>
-                 <div className="text-xl font-mono font-bold text-foreground">{clicks}</div>
+         
+         <div className="flex items-center gap-4">
+             <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}>
+                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+             </Button>
+             
+             <div className="hidden sm:block text-right">
+                 <div className="text-xs text-muted-foreground uppercase">{t.level}</div>
+                 <div className="text-xl font-mono font-bold text-primary">{currentLevel}</div>
              </div>
          </div>
       </header>
 
-      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-24 lg:pb-0">
          
-         {/* Left Panel: Game Board */}
+         {/* Game Area */}
          <div className="lg:col-span-7 flex flex-col items-center">
-            <Card className="w-full p-6 sm:p-8 bg-card/50 backdrop-blur border-primary/10 shadow-2xl relative">
-                {/* Corner Accents */}
-                <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/40 -mt-1 -ml-1"></div>
-                <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/40 -mt-1 -mr-1"></div>
-                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/40 -mb-1 -ml-1"></div>
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/40 -mb-1 -mr-1"></div>
-                
-                <div className="mb-6 flex justify-between items-center lg:hidden">
-                    <span className="text-sm font-bold text-primary">LVL {currentLevel}</span>
-                    <span className="text-sm font-mono">{clicks} CLICKS</span>
+            
+            {gameState === 'FINISHED_ALL' ? (
+                 <Card className="w-full max-w-md p-12 flex flex-col items-center text-center bg-card/80 backdrop-blur">
+                    <Trophy className="w-20 h-20 text-primary mb-6 animate-bounce" />
+                    <h2 className="text-3xl font-bold mb-4">{t.winTitle}</h2>
+                    <p className="text-muted-foreground mb-8">{t.winDesc}</p>
+                    <div className="text-xl font-mono text-primary animate-pulse">{t.toBeContinued}</div>
+                 </Card>
+            ) : (
+                <div className="w-full relative cursor-radar">
+                   {renderGrid()}
                 </div>
+            )}
 
-                {gameState === 'FINISHED_ALL' ? (
-                     <div className="aspect-square w-full max-w-[400px] flex flex-col items-center justify-center text-center p-8 border border-dashed border-primary/30 rounded-lg bg-primary/5">
-                        <Trophy className="w-16 h-16 text-primary mb-4 animate-bounce" />
-                        <h2 className="text-3xl font-bold mb-2">Mission Complete!</h2>
-                        <p className="text-muted-foreground">You have cleared all available sectors.</p>
-                        <div className="mt-8 text-2xl font-mono text-primary animate-pulse">To be continued...</div>
-                     </div>
-                ) : (
-                    renderGrid()
-                )}
-            </Card>
-
-            <div className="mt-8 text-center max-w-md">
-                 <p className="text-sm text-muted-foreground leading-relaxed">
-                    <span className="text-primary font-bold mr-2">MISSION:</span>
-                    Locate and destroy the enemy aircraft prototype. The aircraft has a 1-5-1-3 structure. 
-                    Striking the <span className="text-destructive font-bold">Cockpit (Head)</span> destroys the unit instantly.
+            <div className="mt-8 text-center max-w-md px-4 py-3 bg-card/50 rounded-lg border border-border/50">
+                 <p className="text-sm text-muted-foreground">
+                    <span className="text-primary font-bold mr-2">{t.mission}:</span>
+                    {t.missionDesc}
                  </p>
             </div>
          </div>
 
-         {/* Right Panel: Radar & Info */}
-         <div className="lg:col-span-5 space-y-6">
-            <Card className="p-6 bg-card/50 backdrop-blur border-border">
-                <h3 className="text-sm font-semibold mb-4 text-foreground flex items-center gap-2">
-                    <Crosshair className="w-4 h-4 text-primary" /> 
-                    TARGET INTEL
-                </h3>
-                <PlanePreview />
+         {/* Sidebar: Radar & Log */}
+         <div className="lg:col-span-5 space-y-4">
+            <Card className="p-4 bg-card/80 backdrop-blur border-border shadow-lg">
+                <PlanePreview translations={t} />
             </Card>
 
-            <Card className="p-6 bg-card/50 backdrop-blur border-border">
-                <h3 className="text-sm font-semibold mb-4 text-foreground flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-warning" /> 
-                    STATUS LOG
+            <Card className="p-4 bg-card/80 backdrop-blur border-border shadow-lg flex-1 min-h-[200px]">
+                <h3 className="text-xs font-bold mb-3 text-muted-foreground uppercase flex items-center gap-2">
+                    <AlertTriangle className="w-3 h-3 text-warning" /> 
+                    {t.statusLog}
                 </h3>
-                <div className="space-y-3 font-mono text-sm h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                    {gridState && Object.entries(gridState).map(([key, state], idx) => (
-                        <div key={key} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0 animate-in slide-in-from-left-2">
-                            <span className="text-muted-foreground">SEC-{key.replace('-', ':')}</span>
+                <div className="space-y-2 font-mono text-xs h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                    {Object.entries(gridState).reverse().map(([key, state], idx) => (
+                        <div key={key} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0 animate-in slide-in-from-left-2 fade-in duration-300">
+                            <span className="text-muted-foreground flex items-center gap-2">
+                                <span className="w-1 h-1 bg-primary rounded-full"></span>
+                                {t.sector}-{key.replace('-', ':')}
+                            </span>
                             <span className={cn(
-                                "font-bold",
-                                state === 'MISS' && "text-success",
-                                state === 'HURT' && "text-warning",
-                                state === 'HEAD' && "text-destructive"
-                            )}>{state}</span>
+                                "font-bold px-2 py-0.5 rounded text-[10px]",
+                                state === CELL_STATES.MISS && "bg-success/20 text-success",
+                                state === CELL_STATES.HURT && "bg-warning/20 text-warning",
+                                state === CELL_STATES.HEAD && "bg-destructive/20 text-destructive"
+                            )}>
+                                {state === CELL_STATES.MISS && t.miss}
+                                {state === CELL_STATES.HURT && t.hurt}
+                                {state === CELL_STATES.HEAD && t.boom}
+                            </span>
                         </div>
                     ))}
                     {Object.keys(gridState).length === 0 && (
-                        <div className="text-muted-foreground italic text-center py-8">
-                            Awaiting coordinate input...
+                        <div className="text-muted-foreground italic text-center py-8 opacity-50">
+                            {t.awaitingInput}
                         </div>
                     )}
                 </div>
             </Card>
          </div>
-
       </main>
 
-      {/* Result Dialog */}
-      <Dialog open={gameState === 'WON' || gameState === 'LOST'} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md bg-card border-primary/20">
-          <DialogHeader>
-            <DialogTitle className={cn("text-2xl font-bold flex items-center gap-2", gameState === 'WON' ? "text-primary" : "text-destructive")}>
-              {gameState === 'WON' ? <Trophy className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-              {gameState === 'WON' ? "SECTOR CLEARED" : "MISSION FAILED"}
-            </DialogTitle>
-            <DialogDescription className="text-lg">
-                Performance Evaluation
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="p-4 bg-background rounded-lg border border-border">
-                    <div className="text-xs text-muted-foreground uppercase mb-1">Total Clicks</div>
-                    <div className="text-2xl font-mono font-bold">{clicks}</div>
+      {/* Result Bottom Sheet (Non-blocking) */}
+      {(gameState === 'WON' || gameState === 'LOST') && (
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4 animate-in slide-in-from-bottom-10 fade-in duration-500">
+            <div className="max-w-2xl mx-auto bg-card border border-primary/20 shadow-2xl rounded-xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6 ring-1 ring-white/10">
+                <div className="flex-1 text-center sm:text-left">
+                     <h3 className={cn("text-2xl font-black mb-1", gameState === 'WON' ? "text-primary" : "text-destructive")}>
+                        {gameState === 'WON' ? t.winTitle : t.loseTitle}
+                     </h3>
+                     <p className="text-sm text-muted-foreground">{gameState === 'WON' ? t.winDesc : t.loseDesc}</p>
+                     
+                     <div className="flex gap-4 mt-4 justify-center sm:justify-start">
+                         <div>
+                             <div className="text-[10px] uppercase text-muted-foreground">{t.clicks}</div>
+                             <div className="text-xl font-mono font-bold">{clicks}</div>
+                         </div>
+                         <div className="w-px bg-border h-10"></div>
+                         <div>
+                             <div className="text-[10px] uppercase text-muted-foreground">{t.yourScore}</div>
+                             <div className={cn("text-xl font-mono font-bold", score >= 60 ? "text-green-500" : "text-red-500")}>{score}</div>
+                         </div>
+                         <div className="w-px bg-border h-10"></div>
+                         <div>
+                             <div className="text-[10px] uppercase text-muted-foreground">{t.passScore}</div>
+                             <div className="text-xl font-mono font-bold text-muted-foreground">60</div>
+                         </div>
+                     </div>
                 </div>
-                <div className="p-4 bg-background rounded-lg border border-border">
-                    <div className="text-xs text-muted-foreground uppercase mb-1">Score</div>
-                    <div className={cn("text-2xl font-mono font-bold", score >= 60 ? "text-green-500" : "text-red-500")}>
-                        {score}
-                    </div>
-                </div>
-            </div>
-            
-            <div className="text-center text-sm text-muted-foreground">
-                {gameState === 'WON' 
-                    ? "Target neutralized. Airspace secure. Proceeding to next sector."
-                    : "Target lost. Reinforcements required. Resetting simulation."}
-            </div>
-          </div>
 
-          <DialogFooter className="sm:justify-center">
-            {gameState === 'WON' ? (
-                <Button onClick={handleNextLevel} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-                    PASS - NEXT LEVEL
-                </Button>
-            ) : (
-                <Button onClick={handleRetry} variant="destructive" className="w-full sm:w-auto">
-                    FAIL - RETRY
-                </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <div className="shrink-0">
+                    {gameState === 'WON' ? (
+                        <Button size="lg" onClick={() => setCurrentLevel(l => l + 1)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20">
+                            {t.nextLevel}
+                        </Button>
+                    ) : (
+                        <Button size="lg" onClick={() => initLevel(currentLevel)} variant="destructive" className="font-bold shadow-lg shadow-destructive/20">
+                            {t.retry}
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
