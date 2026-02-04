@@ -2,7 +2,8 @@
   "name": "plane-1513-root",
   "private": true,
   "scripts": {
-    "deploy": "cd frontend && yarn install && yarn build && cd .. && npx wrangler deploy"
+    "postinstall": "cd frontend && yarn install && yarn build",
+    "deploy": "npx wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^3.0.0"
