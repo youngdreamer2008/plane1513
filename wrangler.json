@@ -2,8 +2,7 @@
   "name": "plane-1513",
   "compatibility_date": "2024-09-23",
   "assets": {
-    "directory": "./frontend/build",
-    "binding": "ASSETS"
+    "directory": "./frontend/build"
   },
   "observability": {
     "enabled": true
