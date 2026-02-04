@@ -186,7 +186,7 @@ const GamePage = () => {
             onClick={() => handleCellClick(r, c)}
             disabled={gameState !== 'PLAYING'}
             className={cn(
-              "relative aspect-square w-full rounded-sm transition-all duration-200 flex items-center justify-center text-[10px] sm:text-xs font-bold overflow-hidden group cursor-none select-none",
+              "relative aspect-square w-full rounded-sm transition-all duration-200 flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold overflow-hidden group cursor-pointer select-none touch-manipulation",
               bgClass,
               textClass,
               borderClass
@@ -209,7 +209,7 @@ const GamePage = () => {
       grid.push(...rowCells);
     }
     return (
-        <div className="grid gap-1 w-full max-w-[400px] mx-auto p-1 bg-card border border-border rounded-lg shadow-xl" style={gridStyle}>
+        <div className="grid gap-1 sm:gap-2 w-full max-w-[90vw] sm:max-w-[400px] mx-auto p-1 sm:p-2 bg-card border border-border rounded-lg shadow-xl" style={gridStyle}>
             {grid}
         </div>
     );
@@ -226,68 +226,81 @@ const GamePage = () => {
       `}</style>
 
       {/* Header */}
-      <header className="relative z-10 flex justify-between items-center mb-6 max-w-5xl mx-auto w-full">
-         <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+      <header className="relative z-10 flex flex-col sm:flex-row justify-between items-center mb-6 max-w-5xl mx-auto w-full gap-4 sm:gap-0">
+         <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20 shrink-0">
                 <Target className="w-6 h-6 text-primary animate-[spin_10s_linear_infinite]" />
             </div>
-            <div>
-                <h1 className="text-2xl font-black tracking-tighter text-foreground">{t.title}</h1>
-                <p className="text-xs text-muted-foreground tracking-widest uppercase">{t.subtitle}</p>
+            <div className="flex-1 sm:flex-none">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-foreground leading-none">{t.title}</h1>
+                <p className="text-[10px] sm:text-xs text-muted-foreground tracking-widest uppercase truncate">{t.subtitle}</p>
+            </div>
+             <div className="flex items-center gap-2 sm:hidden ml-auto">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSoundEnabled(!soundEnabled)}>
+                    {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+                </Button>
             </div>
          </div>
          
-         <div className="flex items-center gap-4">
-             <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}>
-                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
-             </Button>
+         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+             <div className="hidden sm:block">
+                <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}>
+                    {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+                </Button>
+             </div>
              
-             <div className="hidden sm:block text-right">
-                 <div className="text-xs text-muted-foreground uppercase">{t.level}</div>
-                 <div className="text-xl font-mono font-bold text-primary">{currentLevel}</div>
+             <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-0 border-border pt-2 sm:pt-0 mt-2 sm:mt-0">
+                <div className="text-center sm:text-right">
+                    <div className="text-[10px] text-muted-foreground uppercase">{t.level}</div>
+                    <div className="text-lg sm:text-xl font-mono font-bold text-primary leading-none">{currentLevel}</div>
+                </div>
+                <div className="text-center sm:text-right sm:hidden">
+                    <div className="text-[10px] text-muted-foreground uppercase">{t.clicks}</div>
+                    <div className="text-lg sm:text-xl font-mono font-bold text-foreground leading-none">{clicks}</div>
+                </div>
              </div>
          </div>
       </header>
 
-      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-24 lg:pb-0">
+      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start pb-24 lg:pb-0">
          
          {/* Game Area */}
-         <div className="lg:col-span-7 flex flex-col items-center">
+         <div className="lg:col-span-7 flex flex-col items-center w-full">
             
             {gameState === 'FINISHED_ALL' ? (
-                 <Card className="w-full max-w-md p-12 flex flex-col items-center text-center bg-card/80 backdrop-blur">
-                    <Trophy className="w-20 h-20 text-primary mb-6 animate-bounce" />
-                    <h2 className="text-3xl font-bold mb-4">{t.winTitle}</h2>
-                    <p className="text-muted-foreground mb-8">{t.winDesc}</p>
-                    <div className="text-xl font-mono text-primary animate-pulse">{t.toBeContinued}</div>
+                 <Card className="w-full max-w-md p-8 sm:p-12 flex flex-col items-center text-center bg-card/80 backdrop-blur">
+                    <Trophy className="w-16 h-16 sm:w-20 sm:h-20 text-primary mb-6 animate-bounce" />
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-4">{t.winTitle}</h2>
+                    <p className="text-sm sm:text-base text-muted-foreground mb-8">{t.winDesc}</p>
+                    <div className="text-lg sm:text-xl font-mono text-primary animate-pulse">{t.toBeContinued}</div>
                  </Card>
             ) : (
-                <div className="w-full relative cursor-radar">
+                <div className="w-full flex justify-center relative cursor-radar">
                    {renderGrid()}
                 </div>
             )}
 
-            <div className="mt-8 text-center max-w-md px-4 py-3 bg-card/50 rounded-lg border border-border/50">
-                 <p className="text-sm text-muted-foreground">
-                    <span className="text-primary font-bold mr-2">{t.mission}:</span>
+            <div className="mt-6 sm:mt-8 text-center max-w-md px-4 py-3 bg-card/50 rounded-lg border border-border/50 w-full">
+                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    <span className="text-primary font-bold mr-2 block sm:inline">{t.mission}:</span>
                     {t.missionDesc}
                  </p>
             </div>
          </div>
 
          {/* Sidebar: Radar & Log */}
-         <div className="lg:col-span-5 space-y-4">
+         <div className="lg:col-span-5 space-y-4 w-full">
+            {/* On Mobile: Stack vertically or hide/collapse if needed. Keeping visible for game logic help. */}
             <Card className="p-0 bg-transparent border-none shadow-none">
-                 {/* Preview Grid Component with updated styling */}
                 <PlanePreview translations={t} />
             </Card>
 
-            <Card className="p-4 bg-card/80 backdrop-blur border-border shadow-lg flex-1 min-h-[200px]">
+            <Card className="p-4 bg-card/80 backdrop-blur border-border shadow-lg flex-1 min-h-[150px] sm:min-h-[200px]">
                 <h3 className="text-xs font-bold mb-3 text-muted-foreground uppercase flex items-center gap-2">
                     <AlertTriangle className="w-3 h-3 text-warning" /> 
                     {t.statusLog}
                 </h3>
-                <div className="space-y-2 font-mono text-xs h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-2 font-mono text-xs h-[150px] sm:h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                     {Object.entries(gridState).reverse().map(([key, state], idx) => (
                         <div key={key} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0 animate-in slide-in-from-left-2 fade-in duration-300">
                             <span className="text-muted-foreground flex items-center gap-2">
@@ -326,17 +339,17 @@ const GamePage = () => {
                      </h3>
                      <p className="text-sm text-muted-foreground">{gameState === 'WON' ? t.winDesc : t.loseDesc}</p>
                      
-                     <div className="flex gap-4 mt-4 justify-center sm:justify-start">
+                     <div className="flex flex-wrap gap-4 mt-4 justify-center sm:justify-start">
                          <div>
                              <div className="text-[10px] uppercase text-muted-foreground">{t.clicks}</div>
                              <div className="text-xl font-mono font-bold">{clicks}</div>
                          </div>
-                         <div className="w-px bg-border h-10"></div>
+                         <div className="w-px bg-border h-10 hidden sm:block"></div>
                          <div>
                              <div className="text-[10px] uppercase text-muted-foreground">{t.yourScore}</div>
                              <div className={cn("text-xl font-mono font-bold", score >= 60 ? "text-green-500" : "text-red-500")}>{score}</div>
                          </div>
-                         <div className="w-px bg-border h-10"></div>
+                         <div className="w-px bg-border h-10 hidden sm:block"></div>
                          <div>
                              <div className="text-[10px] uppercase text-muted-foreground">{t.passScore}</div>
                              <div className="text-xl font-mono font-bold text-muted-foreground">60</div>
@@ -344,13 +357,13 @@ const GamePage = () => {
                      </div>
                 </div>
 
-                <div className="shrink-0">
+                <div className="shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
                     {gameState === 'WON' ? (
-                        <Button size="lg" onClick={() => setCurrentLevel(l => l + 1)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20">
+                        <Button size="lg" onClick={() => setCurrentLevel(l => l + 1)} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20">
                             {t.nextLevel}
                         </Button>
                     ) : (
-                        <Button size="lg" onClick={() => initLevel(currentLevel)} variant="destructive" className="font-bold shadow-lg shadow-destructive/20">
+                        <Button size="lg" onClick={() => initLevel(currentLevel)} variant="destructive" className="w-full sm:w-auto font-bold shadow-lg shadow-destructive/20">
                             {t.retry}
                         </Button>
                     )}

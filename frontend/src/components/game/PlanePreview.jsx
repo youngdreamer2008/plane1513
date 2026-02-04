@@ -108,7 +108,7 @@ const PlanePreview = ({ translations }) => {
          We force a max-width to keep it reasonable but ensure it uses the same visual language 
          as the main grid. We use the same gap-1 and coloring.
       */}
-      <div className="w-full max-w-[200px] flex flex-col gap-1 relative p-1 bg-card border border-border rounded-lg shadow-sm">
+      <div className="w-full max-w-[150px] sm:max-w-[200px] flex flex-col gap-1 relative p-1 bg-card border border-border rounded-lg shadow-sm">
          {grid}
       </div>
 
