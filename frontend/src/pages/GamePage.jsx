@@ -151,8 +151,8 @@ const GamePage = () => {
         let borderClass = "";
 
         if (state === CELL_STATES.MISS) {
-            bgClass = "bg-success border-success";
-            textClass = "text-success-foreground";
+            bgClass = "bg-secondary border-primary/20"; // Background unchanged as requested
+            textClass = "text-success font-bold";
             content = t.miss;
         } else if (state === CELL_STATES.HURT) {
             bgClass = "bg-warning border-warning";
